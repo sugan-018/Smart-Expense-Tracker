@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Expense Tracker & Budget Advisor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f4f7fb;color:#172033}
+header{background:#111827;color:white;padding:22px 5%;display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:22px}header span{opacity:.75;font-size:13px}
+.container{max-width:1200px;margin:28px auto;padding:0 18px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card,.panel{background:white;border-radius:16px;padding:20px;box-shadow:0 5px 20px #0000000b}
+.card small{color:#6b7280}.value{font-size:28px;font-weight:700;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:12px}input,select,button{width:100%;padding:11px;border:1px solid #dbe1ea;border-radius:9px;font-size:14px}
+button{background:#111827;color:white;border:0;cursor:pointer;font-weight:600}button:hover{opacity:.9}
+.full{grid-column:1/-1}.advice{background:#eef2ff;padding:14px;border-radius:10px;margin-top:14px;line-height:1.5}
+table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f4;font-size:13px}
+.danger{color:#dc2626}.good{color:#059669}.muted{color:#6b7280}
+@media(max-width:800px){.cards,.grid{grid-template-columns:1fr 1fr}}@media(max-width:520px){.cards,.grid,form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>💰 Smart Expense Tracker</h1><span>Budget Advisor • Personal Finance Dashboard</span></header>
+<div class="container">
+<div class="cards">
+<div class="card"><small>Total Income</small><div class="value" id="income">₹0</div></div>
+<div class="card"><small>Total Expense</small><div class="value" id="expense">₹0</div></div>
+<div class="card"><small>Balance</small><div class="value" id="balance">₹0</div></div>
+<div class="card"><small>Saving Rate</small><div class="value" id="saving">0%</div></div>
+</div>
+
+<div class="grid">
+<div class="panel"><h2>Add Transaction</h2>
+<form id="form">
+<input id="amount" type="number" min="1" placeholder="Amount (₹)" required>
+<select id="type"><option value="expense">Expense</option><option value="income">Income</option></select>
+<select id="category"><option>Food</option><option>Rent</option><option>Transport</option><option>Education</option><option>Shopping</option><option>Health</option><option>Entertainment</option><option>Other</option></select>
+<input id="date" type="date" required>
+<button class="full">Add Transaction</button>
+</form>
+<div id="advice" class="advice">Add your income and expenses to get a personalized budget suggestion.</div>
+</div>
+
+<div class="panel"><h2>Expense Breakdown</h2><canvas id="chart"></canvas></div>
+
+<div class="panel full"><h2>Transactions</h2>
+<table><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th></tr></thead><tbody id="rows"></tbody></table>
+<button id="clear" style="margin-top:14px;background:#dc2626">Clear All Data</button>
+</div>
+</div>
+</div>
+<script>
+let data=JSON.parse(localStorage.getItem("expenseData")||"[]");
+document.getElementById("date").value=new Date().toISOString().slice(0,10);
+const money=n=>"₹"+Number(n).toLocaleString("en-IN");
+let chart;
+
+function render(){
+ let income=data.filter(x=>x.type==="income").reduce((s,x)=>s+x.amount,0);
+ let expense=data.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);
+ let balance=income-expense, rate=income?((balance/income)*100):0;
+ document.getElementById("income").textContent=money(income);
+ document.getElementById("expense").textContent=money(expense);
+ document.getElementById("balance").textContent=money(balance);
+ document.getElementById("saving").textContent=Math.round(rate)+"%";
+ let rows=document.getElementById("rows"); rows.innerHTML="";
+ [...data].reverse().forEach(x=>rows.innerHTML+=`<tr><td>${x.date}</td><td>${x.type}</td><td>${x.category}</td><td>${money(x.amount)}</td></tr>`);
+ let cats={}; data.filter(x=>x.type==="expense").forEach(x=>cats[x.category]=(cats[x.category]||0)+x.amount);
+ if(chart) chart.destroy();
+ chart=new Chart(document.getElementById("chart"),{type:"doughnut",data:{labels:Object.keys(cats),datasets:[{data:Object.values(cats)}]},options:{responsive:true}});
+ let advice=document.getElementById("advice");
+ if(!income) advice.textContent="💡 Add your monthly income first.";
+ else if(expense>income) advice.innerHTML="<b class='danger'>⚠ Budget Alert:</b> Your expenses are higher than your income.";
+ else if(rate<20) advice.innerHTML="<b>💡 Advisor:</b> Your saving rate is below 20%. Try reducing non-essential spending.";
+ else advice.innerHTML="<b class='good'>✓ Great:</b> Your finances are healthy. Keep saving consistently!";
+}
+document.getElementById("form").onsubmit=e=>{
+ e.preventDefault();
+ data.push({amount:+amount.value,type:type.value,category:category.value,date:date.value});
+ localStorage.setItem("expenseData",JSON.stringify(data)); e.target.reset();
+ date.value=new Date().toISOString().slice(0,10); render();
+};
+document.getElementById("clear").onclick=()=>{if(confirm("Delete all transactions?")){data=[];localStorage.removeItem("expenseData");render()}};
+render();
+</script>
+</body></html>
